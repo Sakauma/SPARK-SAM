@@ -1,0 +1,123 @@
+# Copy to configs/source.local.yaml if you need to change relative locations.
+# Environment variables are expanded at runtime; no machine-specific path is required.
+paths:
+  sam2:
+    repo: "${SAM2_REPO}"
+    checkpoint_root: "${SAM2_CHECKPOINT_ROOT}"
+  artifacts:
+    root: "${ARTIFACT_ROOT}"
+  datasets:
+    nuaa_sirst: "${NUAA_SIRST_ROOT}"
+    nudt_sirst: "${NUDT_SIRST_ROOT}"
+    irstd_1k: "${IRSTD_1K_ROOT}"
+
+model_defaults:
+  model_id: sam2.1_hiera_tiny
+  family: sam2
+  cfg: configs/sam2.1/sam2.1_hiera_t.yaml
+  ckpt: "${SAM2_CHECKPOINT_ROOT}/sam2.1_hiera_tiny.pt"
+  repo: "${SAM2_REPO}"
+
+runtime_defaults:
+  artifact_root: "${ARTIFACT_ROOT}"
+  reference_results_root: reference_results
+  output_name: reproduction/default
+  device: cuda
+  num_workers: 0
+  smoke_test: false
+  max_samples: 0
+  max_images: 0
+  save_visuals: false
+  update_reference_results: false
+  seeds: [42]
+  image_batch_size: 1
+  reuse_image_embedding: true
+
+evaluation_defaults:
+  benchmark_version: sparksam_reproduction_v1
+  track: automatic_image_to_mask
+  protocol: infrared_small_target_segmentation
+  inference_mode: box_point
+  split_version: paper_benchmark_split_v1
+  prompt_policy_version: internal_self_prompt_v1
+  metric_schema_version: segmentation_metrics_v1
+  reference_result_version: none
+  prompt_policy:
+    name: internal_self_prompt
+    prompt_type: box_point
+    prompt_source: model
+    prompt_budget: 2
+    refresh_interval: null
+    multi_mask: false
+    notes: Internal prompts are inferred from the infrared image.
+
+datasets:
+  nuaa_sirst:
+    root_env: NUAA_SIRST_ROOT
+    config:
+      dataset_id: NUAA-SIRST
+      adapter: generic_image_mask
+      root: "${NUAA_SIRST_ROOT}"
+      split_manifest: splits/paper_split.json
+      split_name: train
+      modality: ir
+      images_dir: images
+      masks_dir: masks
+      mask_mode: binary
+      class_map: {}
+  nudt_sirst:
+    root_env: NUDT_SIRST_ROOT
+    config:
+      dataset_id: NUDT-SIRST
+      adapter: generic_image_mask
+      root: "${NUDT_SIRST_ROOT}"
+      split_manifest: splits/paper_split.json
+      split_name: train
+      modality: ir
+      images_dir: images
+      masks_dir: masks
+      mask_mode: binary
+      class_map: {}
+  irstd_1k:
+    root_env: IRSTD_1K_ROOT
+    config:
+      dataset_id: IRSTD-1K
+      adapter: generic_image_mask
+      root: "${IRSTD_1K_ROOT}"
+      split_manifest: splits/paper_split.json
+      split_name: train
+      modality: ir
+      images_dir: images
+      masks_dir: masks
+      mask_mode: binary
+      class_map: {}
+
+models:
+  - alias: tiny
+    model_id: sam2.1_hiera_tiny
+    family: sam2
+    cfg: configs/sam2.1/sam2.1_hiera_t.yaml
+    ckpt: "${SAM2_CHECKPOINT_ROOT}/sam2.1_hiera_tiny.pt"
+  - alias: large
+    model_id: sam2.1_hiera_large
+    family: sam2
+    cfg: configs/sam2.1/sam2.1_hiera_l.yaml
+    ckpt: "${SAM2_CHECKPOINT_ROOT}/sam2.1_hiera_large.pt"
+
+methods:
+  sparksam_full_teacher:
+    baseline: sam2_learned_auto_box_point_calibrated_neg_prompt
+    method:
+      name: response_guidance_pipeline
+      family: frozen_response_guidance
+      prompt_checkpoint: ""
+      prompt_top_k: 10
+      prompt_point_budget: 1
+      prompt_reranker:
+        use_mask_feedback: true
+        max_feedback_candidates: 5
+        prior_score_weights: [0.40, 0.20, 0.15, 0.15, 0.10]
+        feedback_score_weights: [0.35, 0.25, 0.20, 0.10, 0.10]
+        prior_feedback_mix: 0.45
+        box_scales: [1.0, 1.5, 2.0, 3.0]
+        box_feedback_margin: 0.02

@@ -1,0 +1,52 @@
+# Python caches and local test state
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Local machine/private configs
+configs/*.local.yaml
+configs/**/*.local.yaml
+
+# Generated experiment outputs
+artifacts/
+trash/
+outputs/
+runs/
+wandb/
+lightning_logs/
+*.log
+*.tmp
+*.bak
+
+# Local third-party source trees used by reproduction scripts.
+external_repos/*
+!external_repos/README.md
+!external_repos/repo_registry.csv
+!external_repos/*.sh
+
+# Large ML/data artifacts should be managed outside git
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.engine
+*.npy
+*.npz
+*.tar.gz
+*.zip
+
+# Locally generated reference snapshots
+reference_results/*
+!reference_results/README.md
+
+# Local agent/project instructions
+AGENTS.md
+.codex
+.codex/
+.claude
+.claude/

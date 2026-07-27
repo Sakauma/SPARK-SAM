@@ -1,0 +1,221 @@
+experiment: sparksam_nudt_response_calibration
+source_config: configs/source.example.yaml
+artifact_root: artifacts/nudt/response_calibration
+execution:
+  cuda_visible_devices: '0'
+  nproc_per_node: 1
+datasets:
+  train:
+  - nudt_sirst
+  validation:
+  - nudt_sirst
+  test:
+  - nudt_sirst
+split_policy:
+  split_manifest: splits/paper_split.json
+  role_split_names:
+    train: train
+    validation: val
+    test: test
+  strict_no_overlap: true
+teacher_cache:
+  manifest: artifacts/nudt/response_guidance/manifest.json
+  required_teacher_name: Response-Guidance-SAM2.1-Large
+student:
+  alias: tiny
+  family: sam2
+  model:
+    alias: tiny
+    model_id: sam2.1_hiera_tiny
+    family: sam2
+    cfg: configs/sam2.1/sam2.1_hiera_t.yaml
+    ckpt: ${SAM2_CHECKPOINT_ROOT}/sam2.1_hiera_tiny.pt
+  checkpoint:
+    path: ${SAM2_CHECKPOINT_ROOT}/sam2.1_hiera_tiny.pt
+prompt_head:
+  architecture: single_decode_response_calibration
+  learned_sparse_prompt_tokens: 4
+  prompt_embedding_dim: 256
+  soft_argmax_temperature: 0.05
+  max_box_fraction: 0.06
+  min_box_side: 2.0
+  negative_ring_offset: 4.0
+  top_k: 16
+  point_budget: 8
+  nms_radius: 4
+  border_suppression_px: 4
+  target_gaussian_sigma: 2.0
+  focal_alpha: 0.75
+  focal_gamma: 2.0
+  ranking_margin: 1.0
+  ranking_negative_top_k: 96
+  candidate_count: 8
+  candidate_ranking_margin: 1.0
+  decoder_point_count: 4
+  candidate_mask_count: 0
+  candidate_mask_ranking_margin: 0.3
+  decoder_mode: top_points
+  local_prompt_token_count: 4
+  local_prompt_source: bilinear_sample_tiny_image_embed_at_internal_candidate_points_trainable_projector
+  mask_selector_score_source: disabled_fast_single_decode
+  mask_select_temperature: 1.0
+  mask_selector_sam_iou_weight: 0.0
+losses:
+  teacher_mask_distillation:
+    type: teacher_reliability_weighted_soft_bce_plus_prob_mse
+    weight: 0.8
+    aligned_weight: 1.0
+    default_weight: 0.75
+    suspicious_teacher_fp_weight: 0.25
+    teacher_fp_threshold: 0.5
+    teacher_positive_threshold: 0.5
+  gt_segmentation:
+    type: bce_plus_dice_stability_anchor
+    weight: 0.9
+  boundary_distillation:
+    type: soft_boundary_mse_from_calibration_response
+    weight: 0.2
+  false_alarm_penalty:
+    type: background_focal_probability
+    weight: 0.45
+    gamma: 1.0
+  iou_distillation:
+    type: mask_score_or_iou_mse
+    weight: 0.1
+  prompt_objectness_distillation:
+    type: selected_prompt_gaussian_balanced_focal
+    weight: 0.03
+  prompt_box_loss:
+    type: selected_prompt_box_l1
+    weight: 0.01
+  prompt_point_loss:
+    type: selected_prompt_nearest_of_k_point_l1
+    weight: 0.02
+  prompt_ranking_loss:
+    type: selected_prompt_margin_ranking
+    weight: 0.03
+  prompt_teacher_dense_objectness_distillation:
+    type: dense_prompt_guidance_kl_plus_prob_mse
+    weight: 0.04
+    temperature: 0.25
+    kl_weight: 1.0
+    prob_mse_weight: 0.5
+    source: trained_prompt_estimator_dense_objectness
+  prompt_teacher_consistency_aux:
+    type: disabled_dense_guidance_already_primary
+    weight: 0.0
+  candidate_score_loss:
+    type: candidate_level_ce_gt_hit_or_nearest_prompt_guidance_point
+    weight: 0.02
+  candidate_pairwise_ranking_loss:
+    type: candidate_level_pairwise_margin
+    weight: 0.01
+    margin: 1.0
+  candidate_multi_positive_loss:
+    type: candidate_level_multi_positive_bce_gt_hit_or_nearest_prompt_guidance_fallback
+    weight: 0.01
+  candidate_coverage_loss:
+    type: candidate_level_oracle_hit_logsumexp_margin
+    weight: 0.005
+    margin: 1.0
+  candidate_objectness_loss:
+    type: candidate_objectness_bce_for_gt_hitting_topk
+    weight: 0.005
+  candidate_mask_aware_score_loss:
+    type: disabled_fast_single_decode_no_candidate_mask_loop
+    weight: 0.0
+  candidate_mask_aware_pairwise_loss:
+    type: disabled_fast_single_decode_no_candidate_mask_loop
+    weight: 0.0
+    margin: 0.3
+  candidate_oracle_mask_response_loss:
+    type: disabled_fast_single_decode_no_candidate_mask_loop
+    weight: 0.0
+  candidate_mask_quality_regression_loss:
+    type: disabled_fast_single_decode_no_candidate_mask_loop
+    weight: 0.0
+train:
+  seed: 42
+  epochs: 50
+  batch_size: 6
+  effective_batch_target: 24
+  gradient_accumulation_steps: 2
+  learning_rate: 3.0e-06
+  image_encoder_lr_multiplier: 0.05
+  weight_decay: 0.01
+  amp: false
+  grad_clip_norm: 1.0
+  checkpoint_interval_epochs: 10
+  resume_optimizer: true
+  module_policy:
+    image_encoder: train
+    prompt_encoder: train
+    mask_decoder: train
+    prompt_head: train
+    local_prompt_projector: train
+  resume_strict: true
+evaluation:
+  primary_threshold: 0.5
+  threshold_sweep:
+  - 0.2
+  - 0.25
+  - 0.3
+  - 0.35
+  - 0.4
+  - 0.5
+  - 0.6
+  - 0.7
+  - 0.8
+  - 0.9
+acceptance:
+  single_checkpoint_inference: true
+  no_teacher_at_inference: true
+  no_cache_at_inference: true
+  no_external_prompt_at_inference: true
+  validation_only_checkpoint_and_threshold_selection: true
+  test_once_with_selection_lock: true
+prompt_teacher_dense_objectness_cache:
+  manifest: artifacts/nudt/prompt_guidance/manifest.json
+  roles:
+  - train
+  required: true
+  training_supervision_only: true
+  inference_forbidden: true
+checkpoint_protocol: sparksam_response_calibration_v1
+loss_schedule:
+  prompt_loss_names:
+  - prompt_objectness_distillation
+  - prompt_box_loss
+  - prompt_point_loss
+  - prompt_ranking_loss
+  - prompt_teacher_dense_objectness_distillation
+  - candidate_score_loss
+  - candidate_pairwise_ranking_loss
+  - candidate_multi_positive_loss
+  - candidate_coverage_loss
+  - candidate_objectness_loss
+  prompt_full_weight_epochs: 0
+  prompt_decay_end_epoch: 1
+  prompt_late_multiplier: 0.5
+  late_multiplier_by_name: {}
+  rationale: 'Keep prompt and ranking auxiliaries weak from the start; calibrate
+    single-decode masks from ground truth and the joint-adaptation response cache
+    while suppressing false alarms.'
+notes:
+  purpose: response calibration
+  inference: image only; teachers and caches are forbidden
+metadata:
+  paper_name: SPARK-SAM
+  stage: response_calibration
+  dataset: nudt_sirst
+calibration_response_cache:
+  manifest: artifacts/nudt/calibration_response/manifest.json
+  roles:
+  - train
+  required: true
+  training_supervision_only: true
+  inference_forbidden: true
+initialization:
+  kind: checkpoint
+  checkpoint: artifacts/nudt/joint_adaptation/train/checkpoint_selected_sparksam.pt
+  strict: true

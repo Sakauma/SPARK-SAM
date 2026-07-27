@@ -1,0 +1,26 @@
+source_config: configs/source.example.yaml
+response_guidance:
+  split_manifest: splits/paper_split.json
+  role_split_names: {train: train, validation: val, test: test}
+  teacher_model: large
+  teacher_name: Response-Guidance-SAM2.1-Large
+  prompt_checkpoint: artifacts/irstd/prompt_estimator/train/checkpoint_best.pt
+  prompt_modes: [point, box, box_point]
+  train_datasets: [irstd_1k]
+  validation_datasets: [irstd_1k]
+  teacher_cache:
+    root: artifacts/irstd/response_guidance
+    manifest: artifacts/irstd/response_guidance/manifest.json
+    required_teacher_name: Response-Guidance-SAM2.1-Large
+  teacher_prompt_top_k: 10
+  teacher_method:
+    prompt_top_k: 10
+    prompt_point_budget: 1
+    prompt_reranker:
+      use_mask_feedback: true
+      max_feedback_candidates: 5
+      prior_score_weights: [0.40, 0.20, 0.15, 0.15, 0.10]
+      feedback_score_weights: [0.35, 0.25, 0.20, 0.10, 0.10]
+      prior_feedback_mix: 0.45
+      box_scales: [1.0, 1.5, 2.0, 3.0]
+      box_feedback_margin: 0.02

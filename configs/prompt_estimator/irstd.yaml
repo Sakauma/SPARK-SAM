@@ -1,0 +1,44 @@
+experiment_id: train
+output_root: artifacts/irstd/prompt_estimator
+train_seed: 42
+light_cache_dataset_configs: [configs/datasets/irstd_train.yaml]
+validation_light_cache_dataset_configs: [configs/datasets/irstd_validation.yaml]
+train:
+  epochs: 60
+  checkpoint_interval_epochs: 10
+  select_best_checkpoint: true
+  selection_metric: val_loss
+  best_checkpoint_name: checkpoint_best.pt
+  batch_size: 1
+  light_cache_batch_size: auto
+  light_cache_batch_size_max: 4
+  gradient_accumulation_steps: 4
+  learning_rate: 0.0003
+  max_long_side: 512
+  use_amp: true
+  device: cuda
+  seed: 42
+  weight_decay: 0.0001
+  objectness_loss: balanced_focal
+  focal_alpha: 0.75
+  focal_gamma: 2.0
+  max_positive_weight: 256.0
+  ranking_loss_weight: 0.25
+  ranking_margin: 1.0
+  ranking_negative_top_k: 32
+  heuristic_distill_weight: 0.05
+  box_loss_weight: 0.1
+  show_progress: true
+model: {architecture: feature_pyramid, input_channels: 3, hidden_channels: 48, fpn_channels: 64, depth: 6, dropout: 0.0, min_box_side: 2.0, negative_ring_offset: 4.0, use_local_contrast: true, use_top_hat: true}
+target: {gaussian_sigma: 2.0, positive_radius: 1, hard_negative_weight: 2.0, hard_negative_percentile: 95.0}
+post_training_checkpoint_selection:
+  enabled: true
+  selection_policy: component_lexicographic
+  dataset_configs: [configs/datasets/irstd_validation.yaml]
+  device: cuda
+  top_k: 8
+  point_budget: 1
+  response_threshold: 0.15
+  nms_radius: 4
+  border_suppression_px: 4
+  output_name: checkpoint_best.pt

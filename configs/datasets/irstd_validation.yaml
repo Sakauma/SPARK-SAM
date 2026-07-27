@@ -1,0 +1,29 @@
+model:
+  model_id: data_loader
+  family: none
+  cfg: none
+  ckpt: none
+dataset:
+  dataset_id: IRSTD-1K
+  adapter: generic_image_mask
+  root: "${IRSTD_1K_ROOT}"
+  split_manifest: splits/paper_split.json
+  split_name: val
+  modality: ir
+  images_dir: images
+  masks_dir: masks
+  mask_mode: binary
+runtime:
+  artifact_root: "${ARTIFACT_ROOT}"
+  reference_results_root: reference_results
+  output_name: data_loader/irstd_validation
+  device: cpu
+  save_visuals: false
+  update_reference_results: false
+evaluation:
+  benchmark_version: data_loader_v1
+  track: validation
+  protocol: infrared_small_target_segmentation
+  inference_mode: box
+method:
+  name: data_loader
